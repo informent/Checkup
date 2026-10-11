@@ -9,6 +9,19 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
         with: { dotnet-version: 10.0.x }
-      - run: dotnet run --project tests/OpenFixEngineTests.csproj --nologo
-      - run: dotnet build OpenFix.csproj -c Release --nologo
+      - run: dotnet run --project tests/CheckupEngineTests.csproj --nologo
+      - run: dotnet build Checkup.csproj -c Release --nologo
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File tests/Test-Release.ps1
+      - name: Verify product branding
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'test-output/Checkup.exe'
+          $info = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
+          if ($info.ProductName -ne 'Checkup' -or $info.FileDescription -ne 'Checkup') { throw 'Executable product branding is incorrect' }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Checkup-win-x64
+          path: |
+            test-output/*.exe
+            test-output/*.dll
+          if-no-files-found: error

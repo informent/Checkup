@@ -1,16 +1,16 @@
-# OpenFix
+# Checkup
 
-OpenFix is a read-only-first Windows health and troubleshooting tool.
+Checkup is a read-only-first Windows health and troubleshooting tool.
 
 It scans for useful evidence: system-drive space, temporary-file growth, network availability, startup inventory, activation status, and scan safety. It then explains what it found in plain language and calculates a transparent 0–100 health score.
 
 ## Support bundles
 
-OpenFix 1.0 exports a self-contained ZIP for troubleshooting and handoff. Each bundle contains structured JSON, a standalone HTML report, a concise system summary, a privacy note, and a SHA-256 manifest. User-profile names and product-key-shaped values are redacted. OpenFix does not include file contents or make system changes while generating a bundle.
+Checkup 1.0 exports a self-contained ZIP for troubleshooting and handoff. Each bundle contains structured JSON, a standalone HTML report, a concise system summary, a privacy note, and a SHA-256 manifest. User-profile names and product-key-shaped values are redacted. Checkup does not include file contents or make system changes while generating a bundle.
 
 ## Activation
 
-OpenFix includes a **Fix activation** action that opens Windows' official Activation settings. It does not bypass licensing, hide activation notices, or modify protected licensing components.
+Checkup includes a **Fix activation** action that opens Windows' official Activation settings. It does not bypass licensing, hide activation notices, or modify protected licensing components.
 
 ## Principles
 
@@ -23,9 +23,13 @@ OpenFix includes a **Fix activation** action that opens Windows' official Activa
 ## Build and test
 
 ```powershell
-dotnet run --project tests/OpenFixEngineTests.csproj
-dotnet build OpenFix.csproj -c Release
-dotnet publish OpenFix.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+dotnet run --project tests/CheckupEngineTests.csproj
+dotnet build Checkup.csproj -c Release
+dotnet publish Checkup.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
 
-OpenFix is not affiliated with Microsoft or Windows.
+Checkup is not affiliated with Microsoft or Windows.
+
+## Name change
+
+Checkup replaces OpenFix. New builds use Checkup.exe and Checkup.csproj. Existing releases remain available under their original names.

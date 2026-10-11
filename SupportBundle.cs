@@ -6,7 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
-namespace OpenFix;
+namespace Checkup;
 
 public sealed record SystemSummary(string OperatingSystem, string Architecture, string Runtime, long UptimeMinutes, long MemoryMegabytes);
 public sealed record HealthReport(DateTimeOffset CreatedUtc, int Score, string Grade, SystemSummary System, IReadOnlyList<Finding> Findings);
@@ -38,7 +38,7 @@ public static class SupportBundle
         var report = CreateReport(findings);
         var json = JsonSerializer.Serialize(report, JsonOptions);
         var html = RenderHtml(report);
-        var readme = "OpenFix support bundle\r\n\r\nThis bundle was generated read-only. It contains a system summary and OpenFix findings, but no user name, full file paths, product keys, or file contents. Verify entries against manifest-sha256.txt before relying on them.\r\n";
+        var readme = "Checkup support bundle\r\n\r\nThis bundle was generated read-only. It contains a system summary and Checkup findings, but no user name, full file paths, product keys, or file contents. Verify entries against manifest-sha256.txt before relying on them.\r\n";
         var files = new Dictionary<string, byte[]>
         {
             ["report.json"] = Encoding.UTF8.GetBytes(json),
@@ -72,7 +72,7 @@ public static class SupportBundle
     {
         static string H(string value) => WebUtility.HtmlEncode(value);
         var rows = string.Join("", report.Findings.Select(f => $"<tr><td>{H(f.Area)}</td><td class='{f.Level.ToString().ToLowerInvariant()}'>{H(f.Level.ToString())}</td><td><strong>{H(f.Title)}</strong><br>{H(f.Explanation)}</td><td>{H(Redact(f.Evidence))}</td></tr>"));
-        return $"<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width'><title>OpenFix health report</title><style>body{{font:15px system-ui;margin:40px auto;max-width:1100px;color:#18202a;padding:0 20px}}header{{background:#12233f;color:white;padding:28px;border-radius:14px}}.score{{font-size:42px;font-weight:800}}table{{border-collapse:collapse;width:100%;margin-top:24px}}th,td{{text-align:left;padding:12px;border-bottom:1px solid #dce2ea;vertical-align:top}}.good{{color:#087f5b}}.attention{{color:#b25d00}}.critical{{color:#c92a2a}}small{{color:#5c6773}}</style><header><h1>OpenFix health report</h1><div class='score'>{report.Score}/100 · Grade {H(report.Grade)}</div><div>Generated {report.CreatedUtc:u}</div></header><p><strong>System:</strong> {H(report.System.OperatingSystem)} · {H(report.System.Architecture)} · uptime {report.System.UptimeMinutes} minutes · {report.System.MemoryMegabytes} MB available memory</p><table><thead><tr><th>Area</th><th>Status</th><th>Finding</th><th>Evidence</th></tr></thead><tbody>{rows}</tbody></table><p><small>OpenFix generated this report without changing system state. Sensitive path and product-key patterns are redacted.</small></p></html>";
+        return $"<!doctype html><html lang='en'><meta charset='utf-8'><meta name='viewport' content='width=device-width'><title>Checkup health report</title><style>body{{font:15px system-ui;margin:40px auto;max-width:1100px;color:#18202a;padding:0 20px}}header{{background:#12233f;color:white;padding:28px;border-radius:14px}}.score{{font-size:42px;font-weight:800}}table{{border-collapse:collapse;width:100%;margin-top:24px}}th,td{{text-align:left;padding:12px;border-bottom:1px solid #dce2ea;vertical-align:top}}.good{{color:#087f5b}}.attention{{color:#b25d00}}.critical{{color:#c92a2a}}small{{color:#5c6773}}</style><header><h1>Checkup health report</h1><div class='score'>{report.Score}/100 · Grade {H(report.Grade)}</div><div>Generated {report.CreatedUtc:u}</div></header><p><strong>System:</strong> {H(report.System.OperatingSystem)} · {H(report.System.Architecture)} · uptime {report.System.UptimeMinutes} minutes · {report.System.MemoryMegabytes} MB available memory</p><table><thead><tr><th>Area</th><th>Status</th><th>Finding</th><th>Evidence</th></tr></thead><tbody>{rows}</tbody></table><p><small>Checkup generated this report without changing system state. Sensitive path and product-key patterns are redacted.</small></p></html>";
     }
 
     internal static string Redact(string value)
