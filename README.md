@@ -2,7 +2,7 @@
 
 Checkup is a read-only-first Windows health and troubleshooting tool.
 
-It scans for useful evidence: system-drive space, temporary-file growth, network availability, startup inventory, activation status, and scan safety. It then explains what it found in plain language and calculates a transparent 0â€“100 health score.
+It scans for useful evidence: system-drive space, temporary-file growth, network availability, startup inventory, activation status, and scan safety. It then explains what it found in plain language and calculates a transparent 0–100 health score.
 
 ## Support bundles
 
@@ -38,12 +38,12 @@ Checkup replaces OpenFix. New builds use Checkup.exe and Checkup.csproj. Existin
 
 Windows setup packages install Checkup for your current account, bundle the .NET runtime, create a Start menu shortcut and register an uninstaller. A desktop shortcut is optional. No administrator password or manual file copying is required. Existing settings and saved data stay in their current locations. The portable ZIP remains available.
 
-Installer builds are being validated in the **Automatic setup** workflow. Once published, download `Checkup-vVERSION-setup.exe` from Releases and run it.
+Download `Checkup-v1.1.1-setup.exe` from Releases and run it.
 
 For unattended deployment:
 
 ```powershell
-Start-Process .\Checkup-vVERSION-setup.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-' -Wait -PassThru
+Start-Process .\Checkup-v1.1.1-setup.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-' -Wait -PassThru
 ```
 
 Build from source with the [open-source Inno Setup compiler](https://github.com/jrsoftware/issrc) installed:
