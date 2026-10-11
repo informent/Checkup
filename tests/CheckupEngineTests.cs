@@ -1,10 +1,10 @@
-using OpenFix;
+using Checkup;
 using System.IO.Compression;
 using System.Security.Cryptography;
-var findings = OpenFixEngine.Scan();
+var findings = CheckupEngine.Scan();
 if (findings.Count < 4) throw new Exception("Expected core system checks.");
 if (!findings.Any(f => f.Area == "Safety" && f.Level == FindingLevel.Good)) throw new Exception("Read-only safety finding missing.");
-Console.WriteLine($"PASS: OpenFix scan returned {findings.Count} checks");
+Console.WriteLine($"PASS: Checkup scan returned {findings.Count} checks");
 
 var tempTree = Path.Combine(Path.GetTempPath(), $"openfix-tree-{Guid.NewGuid():N}");
 try
@@ -13,7 +13,7 @@ try
     File.WriteAllBytes(Path.Combine(tempTree, "root.bin"), new byte[7]);
     File.WriteAllBytes(Path.Combine(tempTree, "one", "nested.bin"), new byte[11]);
     File.WriteAllBytes(Path.Combine(tempTree, "one", "two", "deep.bin"), new byte[13]);
-    if (OpenFixEngine.MeasureTempBytesForTesting(tempTree) != 31) throw new Exception("Temporary-tree scan missed nested files.");
+    if (CheckupEngine.MeasureTempBytesForTesting(tempTree) != 31) throw new Exception("Temporary-tree scan missed nested files.");
 }
 finally { if (Directory.Exists(tempTree)) Directory.Delete(tempTree, true); }
 Console.WriteLine("PASS: temporary-tree measurement includes nested files");
