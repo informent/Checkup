@@ -5,7 +5,7 @@ public partial class App : System.Windows.Application
 {
     public App()
     {
-        Startup += (_, _) => new MainWindow().Show();
+        Startup += (_, e) => { if (e.Args.Length > 0) { Shutdown(CommandLine.Run(e.Args)); return; } new MainWindow().Show(); };
         DispatcherUnhandledException += (_, e) => { ShowStartupError(e.Exception); e.Handled = true; };
         AppDomain.CurrentDomain.UnhandledException += (_, e) => ShowStartupError(e.ExceptionObject as Exception ?? new Exception("Unknown startup error."));
     }
