@@ -32,7 +32,7 @@ public static class SupportBundle
         return new HealthReport(now ?? DateTimeOffset.UtcNow, score, grade, summary, safeFindings);
     }
 
-    public static BundleResult Export(string destination, IReadOnlyList<Finding> findings)
+    public static BundleResult Export(string destination, IReadOnlyList<Finding> findings, bool overwrite = true)
     {
         if (string.IsNullOrWhiteSpace(destination)) throw new ArgumentException("A destination is required.", nameof(destination));
         var report = CreateReport(findings);
@@ -61,7 +61,7 @@ public static class SupportBundle
                     using var stream = entry.Open();
                     stream.Write(file.Value);
                 }
-            File.Move(temporary, fullPath, true);
+            File.Move(temporary, fullPath, overwrite);
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
         var bytes = File.ReadAllBytes(fullPath);

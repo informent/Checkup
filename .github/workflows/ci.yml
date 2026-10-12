@@ -18,6 +18,10 @@ jobs:
           $exe = Join-Path $PWD 'test-output/Checkup.exe'
           $info = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
           if ($info.ProductName -ne 'Checkup' -or $info.FileDescription -ne 'Checkup') { throw 'Executable product branding is incorrect' }
+      - name: Verify unattended workflow
+        shell: pwsh
+        run: |
+          ./tests/Test-Headless.ps1 -Exe (Join-Path $PWD 'test-output/Checkup.exe')
       - uses: actions/upload-artifact@v7
         with:
           name: Checkup-win-x64

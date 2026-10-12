@@ -6,3 +6,5 @@ tests/obj/
 
 installer-payload/
 installer-output/
+
+test-headless-output/

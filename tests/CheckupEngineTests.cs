@@ -50,3 +50,31 @@ try
 }
 finally { if (File.Exists(output)) File.Delete(output); }
 Console.WriteLine("PASS: support bundle scoring, redaction, contents, and hashes verified");
+
+var inventoryRoot = Path.Combine(Path.GetTempPath(), "checkup-budget-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(inventoryRoot);
+try
+{
+    for (var i = 0; i < 4; i++) File.WriteAllText(Path.Combine(inventoryRoot, i + ".txt"), "fixture");
+    var limited = CheckupEngine.MeasureTemp(inventoryRoot, maxEntries: 2);
+    if (limited.Complete || !limited.BudgetReached || limited.Files != 2 || limited.Bytes != 14) throw new Exception("Inventory budget did not preserve partial counts.");
+    var complete = CheckupEngine.MeasureTemp(inventoryRoot);
+    if (!complete.Complete || complete.Files != 4 || complete.Bytes != 28) throw new Exception("Complete inventory is inaccurate.");
+    var missing = CheckupEngine.MeasureTemp(Path.Combine(inventoryRoot, "missing"));
+    if (missing.Complete || missing.Skipped != 1) throw new Exception("Missing inventory root appeared complete.");
+    using var canceled = new CancellationTokenSource(); canceled.Cancel();
+    try { CheckupEngine.MeasureTemp(inventoryRoot, canceled.Token); throw new Exception("Canceled inventory continued."); } catch (OperationCanceledException) { }
+    var bundlePath = Path.Combine(inventoryRoot, "preserved.zip"); File.WriteAllText(bundlePath, "preserve");
+    try { SupportBundle.Export(bundlePath, sample, overwrite: false); throw new Exception("Existing bundle overwritten."); } catch (IOException) { }
+    if (File.ReadAllText(bundlePath) != "preserve" || Directory.GetFiles(inventoryRoot, "*.tmp-*").Length != 0) throw new Exception("Exclusive export failed cleanup.");
+    if (CommandLine.Run(new[] { "--scan", "--output", bundlePath }) != 2 || CommandLine.Run(new[] { "--bad" }) != 2) throw new Exception("CLI accepted invalid or existing output.");
+    var junction = Path.Combine(inventoryRoot, "loop");
+    var start = new System.Diagnostics.ProcessStartInfo("cmd.exe") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+    foreach (var argument in new[] { "/c", "mklink", "/J", junction, inventoryRoot }) start.ArgumentList.Add(argument);
+    using var process = System.Diagnostics.Process.Start(start)!; process.WaitForExit();
+    if (process.ExitCode != 0) throw new Exception("Junction fixture creation failed.");
+    try { var linked = CheckupEngine.MeasureTemp(inventoryRoot); if (linked.Skipped != 1 || linked.Complete) throw new Exception("Linked inventory entry was followed."); }
+    finally { Directory.Delete(junction); }
+}
+finally { Directory.Delete(inventoryRoot, true); }
+Console.WriteLine("PASS: inventory budgets, cancellation, missing roots, cyclic links, exclusive bundles and CLI validation");

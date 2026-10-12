@@ -7,15 +7,19 @@ public enum FindingLevel { Good, Attention, Critical }
 public sealed record Finding(string Area, FindingLevel Level, string Title, string Explanation, string Evidence, bool CanRepair = false);
 public static class CheckupEngine
 {
-    public static IReadOnlyList<Finding> Scan()
+    public static IReadOnlyList<Finding> Scan() => Scan(CancellationToken.None);
+    public static IReadOnlyList<Finding> Scan(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var findings = new List<Finding>();
         var system = DriveInfo.GetDrives().FirstOrDefault(d => d.IsReady && string.Equals(d.Name, Path.GetPathRoot(Environment.SystemDirectory), StringComparison.OrdinalIgnoreCase));
         if (system is not null) { var free = system.AvailableFreeSpace / 1_073_741_824d; findings.Add(free < 10 ? new Finding("Storage", FindingLevel.Attention, "Low system-drive space", "Windows may become unstable when the system drive is nearly full.", $"{free:0.0} GB available", true) : new Finding("Storage", FindingLevel.Good, "System-drive space is healthy", "There is enough free space for normal Windows operation.", $"{free:0.0} GB available")); }
-        var temp = Path.GetTempPath(); var tempBytes = MeasureTempBytes(temp);
+        var temp = Path.GetTempPath(); var inventory = MeasureTemp(temp, cancellationToken); var tempBytes = inventory.Bytes;
         findings.Add(tempBytes > 5_000_000_000 ? new Finding("Storage", FindingLevel.Attention, "Temporary files are growing large", "Temporary files can be reviewed before cleanup. Checkup will never delete them without an explicit preview.", $"{tempBytes / 1_073_741_824d:0.0} GB in the current temp tree", true) : new Finding("Storage", FindingLevel.Good, "Temporary-file footprint is reasonable", "No unusually large temporary-file footprint was detected.", $"{tempBytes / 1_048_576d:0.0} MB measured"));
+        if (!inventory.Complete) findings.Add(new Finding("Storage", FindingLevel.Attention, "Temporary-file scan has partial coverage", "Linked or unreadable entries were skipped, or the scan budget was reached. The measured size is a lower bound.", $"{inventory.Files} files measured; {inventory.Skipped} entries skipped; budget reached: {inventory.BudgetReached}"));
+        cancellationToken.ThrowIfCancellationRequested();
         findings.Add(NetworkInterface.GetIsNetworkAvailable() ? new Finding("Connectivity", FindingLevel.Good, "Network is available", "Windows reports an active network interface.", "NetworkInterface.GetIsNetworkAvailable() = true") : new Finding("Connectivity", FindingLevel.Attention, "No network is currently available", "This may be intentional if the device is offline.", "No active network interface reported"));
-        var run = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"); var startupCount = run?.GetValueNames().Length ?? 0;
+        using var run = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"); var startupCount = run?.GetValueNames().Length ?? 0;
         findings.Add(new Finding("Startup", FindingLevel.Good, "Startup entries inventoried", "Checkup found the current-user startup entries without changing them.", $"{startupCount} current-user entries"));
         var activation = ReadActivationEvidence();
         findings.Add(new Finding("Activation", activation.IsActivated ? FindingLevel.Good : FindingLevel.Attention, activation.IsActivated ? "Windows reports activation is valid" : "Windows activation needs review", activation.IsActivated ? "The official Windows licensing script reports an active license." : "Checkup cannot activate Windows, but you can review the official status and troubleshoot it from Windows Settings.", activation.Evidence));
@@ -39,21 +43,42 @@ public static class CheckupEngine
         }
         catch (Exception ex) { return (false, $"Activation status unavailable: {ex.Message}"); }
     }
-    private static long SafeLength(string path) { try { return new FileInfo(path).Length; } catch { return 0; } }
-    private static long MeasureTempBytes(string root)
+    public sealed record TempInventory(long Bytes, int Files, int Skipped, bool BudgetReached)
     {
-        if (!Directory.Exists(root)) return 0;
-        long total = 0;
-        var pending = new Stack<string>();
-        pending.Push(root);
-        while (pending.Count > 0)
-        {
-            var directory = pending.Pop();
-            try { foreach (var file in Directory.EnumerateFiles(directory)) total = SaturatingAdd(total, SafeLength(file)); } catch { }
-            try { foreach (var child in Directory.EnumerateDirectories(directory)) pending.Push(child); } catch { }
-        }
-        return total;
+        public bool Complete => Skipped == 0 && !BudgetReached;
     }
-    internal static long MeasureTempBytesForTesting(string root) => MeasureTempBytes(root);
-    private static long SaturatingAdd(long total, long value) => value > long.MaxValue - total ? long.MaxValue : total + value;
+
+    public static TempInventory MeasureTemp(string root, CancellationToken cancellationToken = default, int maxEntries = 200_000, TimeSpan? budget = null)
+    {
+        if (maxEntries < 1 || budget is { } duration && duration <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(maxEntries));
+        cancellationToken.ThrowIfCancellationRequested();
+        var timer = Stopwatch.StartNew(); var timeout = budget ?? TimeSpan.FromSeconds(15);
+        long total = 0; var files = 0; var skipped = 0; var visited = 0;
+        var pending = new Stack<string>(); pending.Push(Path.GetFullPath(root));
+        while (pending.TryPop(out var directory))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (timer.Elapsed >= timeout) return new(total, files, skipped, true);
+            try
+            {
+                if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0) { skipped++; continue; }
+                foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (++visited > maxEntries || timer.Elapsed >= timeout) return new(total, files, skipped, true);
+                    try
+                    {
+                        var attributes = File.GetAttributes(entry);
+                        if ((attributes & FileAttributes.ReparsePoint) != 0) { skipped++; continue; }
+                        if ((attributes & FileAttributes.Directory) != 0) pending.Push(entry);
+                        else { var length = new FileInfo(entry).Length; total = length > long.MaxValue - total ? long.MaxValue : total + length; files++; }
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { skipped++; }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException) { skipped++; }
+        }
+        return new(total, files, skipped, false);
+    }
+    internal static long MeasureTempBytesForTesting(string root) => MeasureTemp(root).Bytes;
 }
